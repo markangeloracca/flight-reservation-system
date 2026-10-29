@@ -14,7 +14,7 @@
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <main.class>ca.ucalgary.frs.FlightReservationApp</main.class>
+        <main.class>ca.pacific.frs.FlightReservationApp</main.class>
 
         <flatlaf.version>3.7.2</flatlaf.version>
         <miglayout.version>11.4.2</miglayout.version>
