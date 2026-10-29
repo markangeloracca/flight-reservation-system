@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: ca.ucalgary.frs.control.AdministrationTest
+-------------------------------------------------------------------------------
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.729 s -- in ca.ucalgary.frs.control.AdministrationTest

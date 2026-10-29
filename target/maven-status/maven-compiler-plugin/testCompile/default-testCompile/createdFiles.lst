@@ -1,0 +1,7 @@
+ca/ucalgary/frs/data/MigrationTest.class
+ca/ucalgary/frs/TestContext$MutableClock.class
+ca/ucalgary/frs/TestContext.class
+ca/ucalgary/frs/domain/DomainModelTest$TestCards.class
+ca/ucalgary/frs/domain/DomainModelTest.class
+ca/ucalgary/frs/control/BookingFlowTest.class
+ca/ucalgary/frs/control/AdministrationTest.class
