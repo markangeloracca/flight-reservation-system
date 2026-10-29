@@ -5,6 +5,49 @@ reservations. One user at a time signs in as a **customer**, **flight agent** or
 
 Java 17 · Swing with FlatLaf and MigLayout · SQLite (embedded) · Maven
 
+## Overview
+
+The Flight Reservation System handles the full life of an airline booking in one desktop app: finding a
+flight, choosing a seat, paying, getting a confirmation, and later changing or cancelling the trip. Behind
+that, it lets airline staff keep the schedule, fleet and customer records up to date.
+
+It runs entirely on the user's computer. There is no server and no internet connection needed; all data
+lives in a single SQLite database file that the app creates and fills with demo data on first launch.
+
+### Who uses it
+
+- **Customers** search for flights, book seats on an interactive cabin map, pay by card (simulated),
+  download confirmations, and manage their own trips, profile and payment history.
+- **Flight agents** do the same on behalf of any customer: create customer profiles, make and change
+  bookings, and view the flight schedule.
+- **System administrators** run the airline's operations data: add, update, cancel and delete flights,
+  manage routes and aircraft, and clear out old flights.
+
+### A typical booking
+
+1. Sign in, or register as a new customer.
+2. Search by origin, destination, date and (optionally) airline. Results show times, prices and seats left.
+3. Pick a flight and choose seats on the seat map. The seats are held for 15 minutes.
+4. Pay with a card. A monthly promotion discount is applied if one is active.
+5. Get a booking confirmation with a code, which can be saved as a text or HTML file.
+6. Later, change the seat or flight (paying or refunding the fare difference) or cancel (full refund 24+
+   hours before departure, 50% after that).
+
+### What makes it reliable
+
+- Business rules are enforced in the core of the app and the database, not just the screens. For example,
+  a seat can never be sold twice, and customers can only ever see their own bookings.
+- Multi-step changes (such as booking plus payment) either complete fully or not at all.
+- Slow work runs in the background, so the window stays responsive.
+- Passwords are hashed, and full card numbers are never stored.
+
+### How it is built
+
+The code follows a three-layer design (presentation, business, data) using well-known object-oriented
+design patterns such as State, Strategy, Observer and Facade. The details are in [Architecture](#architecture)
+below, and UML diagrams (use case, class, sequence, activity and state) are in
+[`documentation/diagrams`](documentation/diagrams/README.md).
+
 ## Run it
 
 ```bash
