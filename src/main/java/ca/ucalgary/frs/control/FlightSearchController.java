@@ -40,12 +40,13 @@ public final class FlightSearchController {
     }
 
     /** Bookable flights matching the filters. Any argument may be null for "any". */
-    public List<FlightAvailability> search(String originCode, String destinationCode, LocalDate date, String airlineCode) {
+    public List<FlightAvailability> search(String originCode, String destinationCode, LocalDate dateFrom,
+                                           LocalDate dateTo, String airlineCode) {
         session.require(Permission.SEARCH_FLIGHTS);
         return flights.search(FlightSearchCriteria.builder()
                 .origin(originCode)
                 .destination(destinationCode)
-                .date(date)
+                .dates(dateFrom, dateTo)
                 .airline(airlineCode)
                 .departingAfter(now())
                 .bookableOnly(true)

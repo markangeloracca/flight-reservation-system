@@ -21,6 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,7 +46,7 @@ class BookingFlowTest {
     }
 
     private FlightAvailability someFlight(int daysAhead) {
-        return ctx.flightSearch().search("YYC", "YVR", TestContext.START.toLocalDate().plusDays(daysAhead), null).get(0);
+        return ctx.flightSearch().search("YYC", "YVR", TestContext.START.toLocalDate().plusDays(daysAhead), TestContext.START.toLocalDate().plusDays(daysAhead), null).get(0);
     }
 
     private Reservation book(FlightAvailability f, String seat) {
@@ -55,13 +56,28 @@ class BookingFlowTest {
 
     @Test
     void searchFiltersByRouteDateAndAirline() {
-        List<FlightAvailability> all = ctx.flightSearch().search("YYC", "YVR", TestContext.START.toLocalDate().plusDays(3), null);
+        List<FlightAvailability> all = ctx.flightSearch().search("YYC", "YVR", TestContext.START.toLocalDate().plusDays(3), TestContext.START.toLocalDate().plusDays(3), null);
         assertFalse(all.isEmpty());
         assertTrue(all.stream().allMatch(a -> a.flight().route().label().equals("YYC → YVR")));
         String airline = all.get(0).flight().airline().code();
         List<FlightAvailability> one = ctx.flightSearch().search("YYC", "YVR",
-                TestContext.START.toLocalDate().plusDays(3), airline);
+                TestContext.START.toLocalDate().plusDays(3), TestContext.START.toLocalDate().plusDays(3), airline);
         assertTrue(one.stream().allMatch(a -> a.flight().airline().code().equals(airline)));
+    }
+
+    @Test
+    void searchCoversEveryDayInTheRange() {
+        LocalDate from = TestContext.START.toLocalDate().plusDays(3);
+        LocalDate to = from.plusDays(2);
+        List<FlightAvailability> range = ctx.flightSearch().search("YYC", "YVR", from, to, null);
+        assertTrue(range.stream().map(a -> a.flight().departureTime().toLocalDate())
+                .allMatch(d -> !d.isBefore(from) && !d.isAfter(to)));
+        List<Long> ids = range.stream().map(a -> a.flight().id()).toList();
+        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+            List<FlightAvailability> day = ctx.flightSearch().search("YYC", "YVR", d, d, null);
+            assertFalse(day.isEmpty());
+            assertTrue(day.stream().allMatch(a -> ids.contains(a.flight().id())));
+        }
     }
 
     @Test

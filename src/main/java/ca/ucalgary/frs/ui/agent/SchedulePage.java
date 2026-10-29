@@ -2,19 +2,17 @@ package ca.ucalgary.frs.ui.agent;
 
 import ca.ucalgary.frs.app.AppContext;
 import ca.ucalgary.frs.control.EventBus;
-import ca.ucalgary.frs.domain.exception.ValidationException;
 import ca.ucalgary.frs.domain.model.FlightAvailability;
 import ca.ucalgary.frs.ui.components.BackgroundTask;
 import ca.ucalgary.frs.ui.components.Card;
 import ca.ucalgary.frs.ui.components.ContentPane;
-import ca.ucalgary.frs.ui.components.DateField;
+import ca.ucalgary.frs.ui.components.DateRangePicker;
 import ca.ucalgary.frs.ui.components.EmptyState;
 import ca.ucalgary.frs.ui.components.Formats;
 import ca.ucalgary.frs.ui.components.ListTableModel;
 import ca.ucalgary.frs.ui.components.SearchField;
 import ca.ucalgary.frs.ui.components.Tables;
 import ca.ucalgary.frs.ui.components.Toolbar;
-import ca.ucalgary.frs.ui.components.UiErrors;
 import ca.ucalgary.frs.ui.shell.BasePage;
 import ca.ucalgary.frs.ui.theme.Typography;
 import net.miginfocom.swing.MigLayout;
@@ -28,8 +26,7 @@ import java.time.LocalDateTime;
 
 /** Use case: View flight schedules (agents and administrators). Read-only. */
 public final class SchedulePage extends BasePage {
-    private final DateField from = DateField.date(LocalDate.now());
-    private final DateField to = DateField.date(LocalDate.now().plusDays(6));
+    private final DateRangePicker dates = new DateRangePicker(LocalDate.now(), LocalDate.now().plusDays(6));
     private final SearchField filter = new SearchField("Filter by flight, city or aircraft", t -> applyFilter());
     private final JLabel count = Typography.caption(" ");
     private LocalDateTime now = LocalDateTime.now();
@@ -40,14 +37,12 @@ public final class SchedulePage extends BasePage {
     public SchedulePage(AppContext ctx) {
         super(ctx);
         FlightColumns.configure(table);
-        from.getAccessibleContext().setAccessibleName("From date");
-        to.getAccessibleContext().setAccessibleName("To date");
-        from.addChangeListener(e -> reload());
-        to.addChangeListener(e -> reload());
+        dates.getAccessibleContext().setAccessibleName("Date range");
+        dates.addPropertyChangeListener(DateRangePicker.PROPERTY_RANGE, e -> reload());
         content = new ContentPane(Tables.scroll(table),
                 new EmptyState("calendar", "No flights in this period", "Choose a different date range."));
         Card card = new Card(new MigLayout("insets 0, fill, wrap 1", "[grow, fill]", "[][grow, fill]"));
-        card.add(new Toolbar().left(Typography.strong("From")).left(from).left(Typography.strong("to")).left(to)
+        card.add(new Toolbar().left(Typography.strong("Departing")).left(dates)
                 .left(filter, "w 260!, gapx 12").left(count, "gapx 8"));
         card.add(content);
         add(card, "grow, push");
@@ -76,12 +71,8 @@ public final class SchedulePage extends BasePage {
 
     @Override
     protected void reload() {
-        LocalDate a = from.getDate();
-        LocalDate b = to.getDate();
-        if (b.isBefore(a)) {
-            UiErrors.show(this, new ValidationException("The end date must be on or after the start date."));
-            return;
-        }
+        LocalDate a = dates.start();
+        LocalDate b = dates.end();
         content.loading();
         BackgroundTask.of(() -> ctx.flightSearch().schedule(a, b))
                 .onSuccess(list -> {

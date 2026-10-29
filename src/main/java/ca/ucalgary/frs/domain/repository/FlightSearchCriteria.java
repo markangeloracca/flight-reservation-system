@@ -6,7 +6,8 @@ import java.time.LocalDateTime;
 /**
  * Search filters for flights. Any null field means "any". Built with {@link #builder()}.
  */
-public record FlightSearchCriteria(String originCode, String destinationCode, LocalDate date, String airlineCode,
+public record FlightSearchCriteria(String originCode, String destinationCode, LocalDate dateFrom,
+                                   LocalDate dateTo, String airlineCode,
                                    LocalDateTime departingAfter, boolean bookableOnly) {
 
     public static Builder builder() {
@@ -16,7 +17,8 @@ public record FlightSearchCriteria(String originCode, String destinationCode, Lo
     public static final class Builder {
         private String originCode;
         private String destinationCode;
-        private LocalDate date;
+        private LocalDate dateFrom;
+        private LocalDate dateTo;
         private String airlineCode;
         private LocalDateTime departingAfter;
         private boolean bookableOnly = true;
@@ -31,8 +33,10 @@ public record FlightSearchCriteria(String originCode, String destinationCode, Lo
             return this;
         }
 
-        public Builder date(LocalDate date) {
-            this.date = date;
+        /** Departure dates, inclusive; either end may be null for open-ended. */
+        public Builder dates(LocalDate from, LocalDate to) {
+            this.dateFrom = from;
+            this.dateTo = to;
             return this;
         }
 
@@ -52,7 +56,7 @@ public record FlightSearchCriteria(String originCode, String destinationCode, Lo
         }
 
         public FlightSearchCriteria build() {
-            return new FlightSearchCriteria(originCode, destinationCode, date, airlineCode, departingAfter, bookableOnly);
+            return new FlightSearchCriteria(originCode, destinationCode, dateFrom, dateTo, airlineCode, departingAfter, bookableOnly);
         }
     }
 }

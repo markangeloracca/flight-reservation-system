@@ -8,7 +8,7 @@ import ca.ucalgary.frs.ui.agent.FlightColumns;
 import ca.ucalgary.frs.ui.components.BackgroundTask;
 import ca.ucalgary.frs.ui.components.Card;
 import ca.ucalgary.frs.ui.components.ContentPane;
-import ca.ucalgary.frs.ui.components.DateField;
+import ca.ucalgary.frs.ui.components.DateRangePicker;
 import ca.ucalgary.frs.ui.components.EmptyState;
 import ca.ucalgary.frs.ui.components.Formats;
 import ca.ucalgary.frs.ui.components.ListTableModel;
@@ -31,8 +31,7 @@ import java.time.LocalDateTime;
 
 /** Administrator use cases: Add, update, cancel and delete flights; remove outdated flights. */
 public final class FlightsPage extends BasePage {
-    private final DateField from = DateField.date(LocalDate.now());
-    private final DateField to = DateField.date(LocalDate.now().plusDays(14));
+    private final DateRangePicker dates = new DateRangePicker(LocalDate.now(), LocalDate.now().plusDays(13));
     private final SearchField filter = new SearchField("Filter by flight, city or aircraft", t -> applyFilter());
     private final JLabel count = Typography.caption(" ");
     private LocalDateTime now = LocalDateTime.now();
@@ -47,10 +46,8 @@ public final class FlightsPage extends BasePage {
         super(ctx);
         FlightColumns.configure(table);
         Tables.onActivate(table, model, this::edit);
-        from.addChangeListener(e -> reload());
-        to.addChangeListener(e -> reload());
-        from.getAccessibleContext().setAccessibleName("From date");
-        to.getAccessibleContext().setAccessibleName("To date");
+        dates.addPropertyChangeListener(DateRangePicker.PROPERTY_RANGE, e -> reload());
+        dates.getAccessibleContext().setAccessibleName("Date range");
 
         edit = Toolbar.button("Edit", "edit", () -> selected().ifPresent(this::edit));
         cancelFlight = Toolbar.button("Cancel flight", "x-circle", () -> selected().ifPresent(this::cancelFlight));
@@ -63,7 +60,7 @@ public final class FlightsPage extends BasePage {
                 new EmptyState("plane-takeoff", "No flights in this period", "Choose another date range or add a flight.")
                         .action("Add flight", this::add));
         Card card = new Card(new MigLayout("insets 0, fill, wrap 1", "[grow, fill]", "[][][grow, fill]"));
-        card.add(new Toolbar().left(Typography.strong("From")).left(from).left(Typography.strong("to")).left(to)
+        card.add(new Toolbar().left(Typography.strong("Departing")).left(dates)
                 .left(filter, "w 240!, gapx 12").left(count, "gapx 8"));
         card.add(new Toolbar().right(purge).right(delete).right(cancelFlight).right(edit)
                 .right(Toolbar.primary("Add flight", "plus", this::add)), "gaptop 8");
@@ -95,11 +92,8 @@ public final class FlightsPage extends BasePage {
 
     @Override
     protected void reload() {
-        LocalDate a = from.getDate();
-        LocalDate b = to.getDate();
-        if (b.isBefore(a)) {
-            return;
-        }
+        LocalDate a = dates.start();
+        LocalDate b = dates.end();
         Long keep = selected().map(f -> f.flight().id()).orElse(null);
         content.loading();
         BackgroundTask.of(() -> ctx.flightManagement().flights(a, b))

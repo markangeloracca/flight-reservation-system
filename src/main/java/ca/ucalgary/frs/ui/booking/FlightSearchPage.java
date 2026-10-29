@@ -12,7 +12,7 @@ import ca.ucalgary.frs.ui.components.Banner;
 import ca.ucalgary.frs.ui.components.Card;
 import ca.ucalgary.frs.ui.components.Choice;
 import ca.ucalgary.frs.ui.components.ContentPane;
-import ca.ucalgary.frs.ui.components.DateField;
+import ca.ucalgary.frs.ui.components.DateRangePicker;
 import ca.ucalgary.frs.ui.components.EmptyState;
 import ca.ucalgary.frs.ui.components.Formats;
 import ca.ucalgary.frs.ui.components.Icons;
@@ -42,7 +42,7 @@ public final class FlightSearchPage extends ca.ucalgary.frs.ui.shell.BasePage {
     private final JComboBox<Choice<Airport>> origin = new JComboBox<>();
     private final JComboBox<Choice<Airport>> destination = new JComboBox<>();
     private final JComboBox<Choice<Airline>> airline = new JComboBox<>();
-    private final DateField date = DateField.date(LocalDate.now().plusDays(1));
+    private final DateRangePicker dates = new DateRangePicker(LocalDate.now().plusDays(1), LocalDate.now().plusDays(7));
     private final JCheckBox anyDate = new JCheckBox("Any date", true);
     private final JLabel resultCount = Typography.caption(" ");
     private final Banner promo = new Banner();
@@ -85,12 +85,13 @@ public final class FlightSearchPage extends ca.ucalgary.frs.ui.shell.BasePage {
         origin.getAccessibleContext().setAccessibleName("From");
         destination.getAccessibleContext().setAccessibleName("To");
         airline.getAccessibleContext().setAccessibleName("Airline");
-        date.setEnabled(false);
+        dates.getAccessibleContext().setAccessibleName("Travel dates");
+        dates.setEnabled(false);
         anyDate.addActionListener(e -> {
-            date.setEnabled(!anyDate.isSelected());
+            dates.setEnabled(!anyDate.isSelected());
             autoSearch.restart();
         });
-        date.addChangeListener(e -> autoSearch.restart());
+        dates.addPropertyChangeListener(DateRangePicker.PROPERTY_RANGE, e -> autoSearch.restart());
         origin.addActionListener(e -> autoSearch.restart());
         destination.addActionListener(e -> autoSearch.restart());
         airline.addActionListener(e -> autoSearch.restart());
@@ -100,13 +101,13 @@ public final class FlightSearchPage extends ca.ucalgary.frs.ui.shell.BasePage {
         criteria.add(Typography.strong("From"));
         criteria.add(new JLabel());
         criteria.add(Typography.strong("To"));
-        criteria.add(Typography.strong("Date"));
+        criteria.add(Typography.strong("Dates"));
         criteria.add(new JLabel());
         criteria.add(Typography.strong("Airline"), "wrap");
         criteria.add(origin);
         criteria.add(swap, "gapx 6 6");
         criteria.add(destination);
-        criteria.add(date);
+        criteria.add(dates);
         criteria.add(anyDate);
         criteria.add(airline);
         criteria.add(search);
@@ -116,7 +117,7 @@ public final class FlightSearchPage extends ca.ucalgary.frs.ui.shell.BasePage {
         table.getSelectionModel().addListSelectionListener(e -> book.setEnabled(table.getSelectedRow() >= 0));
 
         EmptyState empty = new EmptyState("plane", "No flights found",
-                "Try another date, choose \"Any date\", or widen the airline filter.");
+                "Try other dates, choose \"Any date\", or widen the airline filter.");
         content = new ContentPane(Tables.scroll(table), empty);
         Card results = new Card(new MigLayout("insets 0, fill, wrap 1", "[grow, fill]", "[][grow, fill]"));
         results.add(new Toolbar().left(Typography.h3("Available flights")).left(resultCount).right(book));
@@ -182,10 +183,11 @@ public final class FlightSearchPage extends ca.ucalgary.frs.ui.shell.BasePage {
         Airport from = value(origin);
         Airport to = value(destination);
         Airline al = value(airline);
-        LocalDate day = anyDate.isSelected() ? null : date.getDate();
+        LocalDate first = anyDate.isSelected() ? null : dates.start();
+        LocalDate last = anyDate.isSelected() ? null : dates.end();
         content.loading();
         BackgroundTask.of(() -> ctx.flightSearch().search(from == null ? null : from.code(), to == null ? null : to.code(),
-                        day, al == null ? null : al.code()))
+                        first, last, al == null ? null : al.code()))
                 .onSuccess(list -> {
                     lastNow = ctx.flightSearch().now();
                     model.setRows(list);

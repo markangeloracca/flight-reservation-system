@@ -63,7 +63,7 @@ class AdministrationTest {
                 .email("walk.in@example.com").build());
         assertThrows(ValidationException.class, () -> ctx.customers().create(Customer.builder().firstName("Dup")
                 .lastName("Email").email("WALK.IN@example.com").build()));
-        FlightAvailability f = ctx.flightSearch().search("YYZ", "YUL", TestContext.START.toLocalDate().plusDays(3), null).get(0);
+        FlightAvailability f = ctx.flightSearch().search("YYZ", "YUL", TestContext.START.toLocalDate().plusDays(3), TestContext.START.toLocalDate().plusDays(3), null).get(0);
         Reservation hold = ctx.booking().holdSeat(created.id(), f.flight().id(), "8C");
         ctx.booking().pay(hold.id(), TestContext.goodCard());
         assertEquals(1, ctx.booking().search(hold.confirmationCode(), null).size());
@@ -74,7 +74,7 @@ class AdministrationTest {
     void cancellingAFlightRefundsEveryPassenger() {
         TestContext t = new TestContext(dir).login("customer", "customer123");
         AppContext ctx = t.ctx;
-        FlightAvailability f = ctx.flightSearch().search("YYC", "YEG", TestContext.START.toLocalDate().plusDays(4), null).get(0);
+        FlightAvailability f = ctx.flightSearch().search("YYC", "YEG", TestContext.START.toLocalDate().plusDays(4), TestContext.START.toLocalDate().plusDays(4), null).get(0);
         Reservation r = ctx.booking().holdSeat(ctx.session().customerId().orElseThrow(), f.flight().id(), "5A");
         ctx.booking().pay(r.id(), TestContext.goodCard());
         ctx.auth().logout();
@@ -90,7 +90,7 @@ class AdministrationTest {
     void flightEditsMustKeepBookedSeatsValid() {
         TestContext t = new TestContext(dir).login("customer", "customer123");
         AppContext ctx = t.ctx;
-        FlightAvailability f = ctx.flightSearch().search("YYC", "YYZ", TestContext.START.toLocalDate().plusDays(4), null).get(0);
+        FlightAvailability f = ctx.flightSearch().search("YYC", "YYZ", TestContext.START.toLocalDate().plusDays(4), TestContext.START.toLocalDate().plusDays(4), null).get(0);
         Reservation r = ctx.booking().holdSeat(ctx.session().customerId().orElseThrow(), f.flight().id(), "1A");
         ctx.booking().pay(r.id(), TestContext.goodCard());
         ctx.auth().logout();
@@ -146,8 +146,8 @@ class AdministrationTest {
         t.clock.set(TestContext.START.plusMonths(1).withDayOfMonth(1));
         assertTrue(ctx.promotions().unseenPromotionForCurrentCustomer().isPresent());
 
-        FlightAvailability f = ctx.flightSearch().search("YYC", "YVR", t.clock.instant()
-                .atZone(t.clock.getZone()).toLocalDate().plusDays(3), null).get(0);
+        LocalDate day = t.clock.instant().atZone(t.clock.getZone()).toLocalDate().plusDays(3);
+        FlightAvailability f = ctx.flightSearch().search("YYC", "YVR", day, day, null).get(0);
         assertTrue(ctx.booking().quote(f.flight(), ca.ucalgary.frs.domain.model.SeatClass.ECONOMY).hasDiscount());
     }
 }

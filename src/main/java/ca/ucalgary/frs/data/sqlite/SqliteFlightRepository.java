@@ -32,12 +32,14 @@ public final class SqliteFlightRepository implements FlightRepository {
 
     @Override
     public List<FlightAvailability> search(FlightSearchCriteria q) {
-        String date = q.date() == null ? null : q.date().toString();
+        String dateFrom = q.dateFrom() == null ? null : q.dateFrom().toString();
+        String dateTo = q.dateTo() == null ? null : q.dateTo().toString();
         return db.withConnection(c -> Sql.list(c, SELECT_AVAILABILITY + """
                 WHERE (? IS NULL OR r.origin = ?)
                   AND (? IS NULL OR r.destination = ?)
                   AND (? IS NULL OR f.airline_code = ?)
-                  AND (? IS NULL OR substr(f.departure_time, 1, 10) = ?)
+                  AND (? IS NULL OR substr(f.departure_time, 1, 10) >= ?)
+                  AND (? IS NULL OR substr(f.departure_time, 1, 10) <= ?)
                   AND (? IS NULL OR f.departure_time > ?)
                   AND (? = 0 OR f.status <> 'CANCELLED')
                 ORDER BY f.departure_time
@@ -46,7 +48,8 @@ public final class SqliteFlightRepository implements FlightRepository {
                 q.originCode(), q.originCode(),
                 q.destinationCode(), q.destinationCode(),
                 q.airlineCode(), q.airlineCode(),
-                date, date,
+                dateFrom, dateFrom,
+                dateTo, dateTo,
                 q.departingAfter(), q.departingAfter(),
                 q.bookableOnly(),
                 MAX_RESULTS));
