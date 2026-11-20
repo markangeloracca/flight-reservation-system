@@ -1,0 +1,251 @@
+@startuml
+
+title G.2 Packages and Their Classes
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide circle
+hide methods
+
+package "Presentation layer" #EEF4FF {
+  class "ui.shell" as ui_shell {
+    + MainFrame
+    + «i» Page
+    + BasePage
+    + PageFactory
+    + Brand
+    + Splash
+    ~ LoginView
+    ~ RegisterDialog
+    ~ PromotionDialog
+    ~ ShellPanel
+    ~ NavButton
+  }
+  class "ui.booking" as ui_booking {
+    + FlightSearchPage
+    + BookingDialog
+    + SeatMapPanel
+    + FareBreakdown
+    + PaymentDialog
+    + ConfirmationDialog
+    + MyTripsPage
+    + ModifyReservationDialog
+    + ReservationActions
+    + ReservationColumns
+    + FlightSummary
+    + StatusViews
+  }
+  class "ui.customer" as ui_customer {
+    + CustomersPage
+    + ProfilePage
+    + CustomerEditorDialog
+    + CustomerForm
+  }
+  class "ui.agent" as ui_agent {
+    + ReservationsPage
+    + SchedulePage
+    + FlightColumns
+  }
+  class "ui.admin" as ui_admin {
+    + FlightsPage
+    + FlightEditorDialog
+    + RoutesPage
+    + RouteEditorDialog
+    + AircraftPage
+    + AircraftEditorDialog
+  }
+  class "ui.components" as ui_components {
+    + BackgroundTask
+    + ListTableModel
+    + AppDialog · Card · Badge
+    + Banner · Toasts · Tone
+    + EmptyState · Skeleton
+    + ContentPane · Toolbar
+    + FormBuilder · DateField
+    + DateRangePicker · SearchField
+    + Segmented · Choice · Tables
+    + Formats · Icons · UiErrors
+    + WrapLabel
+  }
+  class "ui.theme" as ui_theme {
+    + Theme
+    + Palette
+    + Typography
+  }
+}
+
+package "Business logic layer" #F0FAF3 {
+  class "control" as control {
+    + AuthController
+    + FlightSearchController
+    + BookingController
+    + PaymentController
+    + CustomerController
+    + FlightManagementController
+    + RouteAndAircraftController
+    + PromotionController
+    + Session
+    + EventBus
+    ~ AccessGuard
+  }
+  class "control.confirmation" as control_conf {
+    + «i» ConfirmationRenderer
+    + PlainTextConfirmationRenderer
+    + HtmlConfirmationRenderer
+    ~ ConfirmationFormats
+  }
+  class "domain.model" as domain_model {
+    + User · CustomerUser
+    + FlightAgent · SystemAdministrator
+    + UserFactory · Role · Permission
+    + Customer
+    + Flight · FlightStatus · FlightAvailability
+    + Airline · Airport · Route
+    + Aircraft · Seat · SeatClass · SeatMap
+    + Reservation · «i» ReservationState
+    + ReservationStatus · FareQuote
+    + BookingConfirmation
+    + Payment · PaymentStatus · PaymentType
+    + PaymentMethodType · CardDetails
+    + Promotion · Money · Validate
+    ~ PendingPaymentState
+    ~ ConfirmedState
+    ~ CancelledState
+    ~ CompletedState
+  }
+  class "domain.policy" as domain_policy {
+    + FareCalculator
+    + «i» DiscountPolicy
+    + PercentageDiscountPolicy
+    + «i» RefundPolicy
+    + StandardRefundPolicy
+    + ConfirmationCodeGenerator
+  }
+  class "domain.repository" as domain_repo {
+    + «i» TransactionManager
+    + «i» UserRepository
+    + «i» CustomerRepository
+    + «i» FlightQueryRepository
+    + «i» FlightRepository
+    + FlightSearchCriteria
+    + «i» ReservationRepository
+    + «i» PaymentRepository
+    + «i» RouteRepository
+    + «i» AircraftRepository
+    + «i» ReferenceDataRepository
+    + «i» PromotionRepository
+    + «i» SettingsRepository
+  }
+  class "domain.gateway" as domain_gateway {
+    + «i» PaymentGateway
+    + «i» FileExporter
+  }
+  class "domain.security" as domain_security {
+    + PasswordHasher
+  }
+  class "domain.exception" as domain_exception {
+    + ValidationException
+    + BusinessRuleException
+    + AuthenticationException
+    + AuthorizationException
+    + NotFoundException
+    + DuplicateKeyException
+    + PaymentDeclinedException
+    + PersistenceException
+  }
+}
+
+package "Data layer" #FFF7E6 {
+  class "data.db" as data_db {
+    + Database
+    + «i» ConnectionFactory
+    + SqliteConnectionFactory
+    + Sql
+    + «i» SqlWork
+    + «i» RowMapper
+  }
+  class "data.sqlite" as data_sqlite {
+    + SqliteUserRepository
+    + SqliteCustomerRepository
+    + SqliteFlightRepository
+    + SqliteReservationRepository
+    + SqlitePaymentRepository
+    + SqliteRouteRepository
+    + SqliteAircraftRepository
+    + SqliteReferenceDataRepository
+    + SqlitePromotionRepository
+    + SqliteSettingsRepository
+    ~ Mappers
+  }
+  class "data.migration" as data_migration {
+    + SchemaMigrator
+    + «i» Migration
+    + SqlScriptMigration
+    + DemoDataSeeder
+  }
+  class "data.gateway" as data_gateway {
+    + SimulatedPaymentGateway
+  }
+  class "data.file" as data_file {
+    + LocalFileExporter
+  }
+}
+
+package "Composition root" #F5F5F5 {
+  class "app" as app {
+    + AppContext
+    + AppPaths
+    + SingleInstanceLock
+  }
+  class "ca.pacific.frs" as main {
+    + FlightReservationApp
+  }
+}
+
+' Presentation depends on business + composition root, never on data
+' ponytail: ui.* -> ui.shell/ui.components/ui.theme edges left out for readability
+ui_shell ..> control
+ui_booking ..> control
+ui_booking ..> control_conf
+ui_shell ..> domain_model
+ui_booking ..> domain_model
+ui_shell ..> domain_exception
+ui_shell ..> app
+ui_booking ..> app
+ui_customer ..> control
+ui_customer ..> domain_model
+ui_agent ..> control
+ui_agent ..> domain_model
+ui_admin ..> control
+ui_admin ..> domain_model
+
+' Business layer internals
+control ..> control_conf
+control ..> domain_model
+control ..> domain_policy
+control ..> domain_repo
+control ..> domain_gateway
+control ..> domain_security
+control ..> domain_exception
+domain_model ..> domain_exception
+domain_policy ..> domain_model
+domain_repo ..> domain_model
+domain_gateway ..> domain_model
+
+' Data layer realizes business interfaces, points upward
+data_sqlite ..|> domain_repo : realizes
+data_db ..|> domain_repo : realizes\nTransactionManager
+data_gateway ..|> domain_gateway : realizes
+data_file ..|> domain_gateway : realizes
+data_sqlite ..> data_db
+data_migration ..> data_db
+data_migration ..> domain_security : seeds hashed\npasswords
+data_sqlite ..> domain_model : maps rows to
+
+' Composition root wires everything
+main ..> app
+main ..> ui_shell
+app ..> control
+app ..> data_sqlite
+app ..> data_gateway
+@enduml

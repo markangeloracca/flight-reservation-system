@@ -1,0 +1,28 @@
+@startuml
+title State Diagram 2 - Payment Process
+
+skinparam linetype ortho
+skinparam nodesep 120
+skinparam ranksep 120
+
+[*] --> EnteringDetails : payment dialog opens
+EnteringDetails : entry/show amount due
+
+Processing -up-> EnteringDetails : payment declined\nor refused
+EnteringDetails --> EnteringDetails : invalid card details\n/ show error
+EnteringDetails --> Processing : valid card submitted
+EnteringDetails -right-> Abandoned : customer cancels\nor closes dialog
+
+Processing : entry/disable form
+Processing : do/charge card
+Processing : exit/enable form
+
+Processing --> Paid : payment approved\nor nothing due
+
+Paid : entry/confirm reservation
+Abandoned : entry/release seat
+
+Paid --> [*]
+Abandoned --> [*]
+
+@enduml

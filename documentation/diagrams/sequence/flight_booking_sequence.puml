@@ -1,0 +1,117 @@
+@startuml
+title Sequence Diagram 3 - Book a Flight (UC-06)
+
+hide footbox
+skinparam sequenceParticipant underline
+autonumber
+
+actor "Customer / Agent" as U
+participant ":BookingDialog" as BD
+participant ":FareBreakdown" as FB
+participant ":BookingController" as BC
+participant ":CustomerRepository" as CR
+participant ":FlightRepository" as FR
+participant ":Reservation" as R
+participant ":ReservationRepository" as RR
+participant ":PaymentDialog" as PD
+participant ":PaymentController" as PAY
+participant ":ConfirmationDialog" as CD
+
+== Choose a seat ==
+
+U -> BD : select seat on seat map
+activate BD
+BD -> BC : quote(flight, seatClass)
+activate BC
+BC --> BD : fareQuote
+deactivate BC
+BD -> FB : show(fareQuote)
+
+opt user is an agent
+    U -> BD : choose customer
+end
+
+== Hold the seat ==
+
+U -> BD : click Continue
+BD -> BC : holdSeat(customerId, flightId, seatCode)
+activate BC
+BC -> CR : findById(customerId)
+activate CR
+CR --> BC : customer
+deactivate CR
+BC -> FR : findById(flightId)
+activate FR
+FR --> BC : flight
+deactivate FR
+BC -> FR : occupiedSeats(flightId)
+activate FR
+FR --> BC : occupiedSeatCodes
+deactivate FR
+
+alt seat already occupied
+    BC --> BD : BusinessRuleException\n"Seat is no longer available"
+    BD --> U : show error message
+    BD -> BD : loadSeatMap()
+else seat free
+    create R
+    BC -> R : hold(code, customer, flight, seat, fareQuote, now, userId)
+    R --> BC : reservation (PENDING_PAYMENT)
+    BC -> RR : insert(reservation)
+    activate RR
+    RR --> BC : reservation with id
+    deactivate RR
+    BC --> BD : heldReservation
+    deactivate BC
+
+    == Pay ==
+
+    create PD
+    BD -> PD : show(amount, "seat held for 15 minutes", submitter)
+    activate PD
+    U -> PD : enter card details, click Pay
+    PD -> BC : pay(reservationId, card)
+    activate BC
+    BC -> PAY : payReservation(reservationId, card)
+    activate PAY
+    ref over PAY : Sequence Diagram 4\nMake a Payment
+    PAY --> BC : payment
+    deactivate PAY
+    BC --> PD : reservation (CONFIRMED)
+    deactivate BC
+    PD --> BD : Optional<Reservation>
+    deactivate PD
+
+    alt paid
+        BD -> BD : dispose()
+        create CD
+        BD -> CD : open(owner, ctx, reservationId, true)
+        activate CD
+        CD -> BC : confirmation(reservationId)
+        activate BC
+        BC --> CD : bookingConfirmation
+        deactivate BC
+        opt customer saves the confirmation
+            U -> CD : click Save, choose .txt or .html
+            CD -> CD : save()
+            CD -> BC : exportConfirmation(reservationId, target, renderer)
+            activate BC
+            deactivate BC
+        end
+        deactivate CD
+    else dialog closed without paying
+        BD -> BC : releaseHold(reservationId)
+        activate BC
+        BC -> R : cancel(now)
+        activate R
+        deactivate R
+        BC -> RR : update(reservation)
+        activate RR
+        deactivate RR
+        deactivate BC
+        BD --> U : "Payment cancelled. Seat was released."
+    end
+end
+deactivate BD
+
+@enduml

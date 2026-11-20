@@ -1,0 +1,55 @@
+@startuml
+
+title Activity Diagram 3 - Booking a Flight
+start
+:Show seat map (business and economy cabins, occupied seats disabled);
+if (Signed-in user is an agent?) then (yes)
+  :Choose the customer to book for;
+else (no)
+  :Passenger is the signed-in customer;
+endif
+repeat
+  :Pick a free seat;
+  :Quote the fare (base x cabin multiplier - promotion + 5% tax);
+  :Show the fare breakdown;
+repeat while (Pick another seat?) is (yes) not (continue)
+if (Continue to payment or cancel?) then (cancel)
+  stop
+else (continue)
+endif
+if (Allowed to book for this customer?) then (no)
+  :Show "You can only access your own account";
+  stop
+else (yes)
+endif
+partition "One transaction" {
+  :Load customer, flight and seat;
+  if (Flight still bookable?) then (no)
+    :Show "Flight ... can no longer be booked";
+    stop
+  else (yes)
+  endif
+  if (Seat still free?) then (no)
+    :Show "Seat ... is no longer available" and reload the seat map;
+    stop
+  else (yes)
+  endif
+  :Generate a unique 6-character confirmation code;
+  :Insert reservation as PENDING_PAYMENT (seat held);
+}
+if (Unique seat index violated by a concurrent hold?) then (yes)
+  :Show "Seat was just taken" and reload the seat map;
+  stop
+else (no)
+endif
+:Commit and notify open pages (flights and reservations changed);
+:Make a payment (Activity Diagram 4);
+if (Payment completed?) then (yes)
+  :Reservation becomes CONFIRMED;
+  :Show booking confirmation (view, copy code, save .txt / .html);
+else (no, dialog closed)
+  :Release the hold: cancel the reservation and free the seat;
+  :Show "Payment cancelled. Seat ... was released.";
+endif
+stop
+@enduml

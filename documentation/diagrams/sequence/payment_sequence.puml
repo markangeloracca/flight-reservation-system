@@ -1,0 +1,110 @@
+@startuml
+title Sequence Diagram 4 - Make a Payment (UC-07)
+
+hide footbox
+skinparam sequenceParticipant underline
+autonumber
+
+actor "Customer / Agent" as U
+participant ":PaymentDialog" as PD
+participant ":CardDetails" as CDt
+participant ":BookingController" as BC
+participant ":PaymentController" as PC
+participant ":ReservationRepository" as RR
+participant ":PaymentRepository" as PR
+participant ":Payment" as P
+participant ":PaymentGateway" as GW
+participant ":Reservation" as R
+
+U -> PD : enter card details, click Pay
+activate PD
+create CDt
+PD -> CDt : new CardDetails(method, name, number, expiry, cvv)
+note right of CDt : Luhn check, expiry not past,\nCVV 3-4 digits
+
+alt card details invalid
+    CDt --> PD : ValidationException
+    PD --> U : show error on form
+else card details valid
+    PD -> PD : setWorking(true)
+    PD -> BC : pay(reservationId, card)
+    activate BC
+    BC -> PC : payReservation(reservationId, card)
+    activate PC
+    PC -> RR : findById(reservationId)
+    activate RR
+    RR --> PC : reservation
+    deactivate RR
+    PC -> PR : findByReservation(reservationId)
+    activate PR
+    PR --> PC : earlierPayments
+    deactivate PR
+    note right of PC : status must be PENDING_PAYMENT\ndue = fare.total() - amountPaid
+
+    PC -> PC : charge(reservationId, card, due)
+    activate PC
+    create P
+    PC -> P : initiate(reservationId, CHARGE, due, card, now)
+    P --> PC : payment (INITIATED)
+    PC -> PR : insert(payment)
+    activate PR
+    PR --> PC : payment with id
+    deactivate PR
+    PC -> GW : authorize(card, due)
+    activate GW
+    GW --> PC : authResult
+    deactivate GW
+
+    alt authorization declined
+        PC -> P : decline(reason)
+        activate P
+        deactivate P
+    else authorization approved
+        PC -> P : authorize(reference)
+        activate P
+        deactivate P
+        PC -> GW : capture(reference, due)
+        activate GW
+        GW --> PC : captureResult
+        deactivate GW
+        PC -> P : complete()
+        activate P
+        deactivate P
+    end
+    PC -> PR : update(payment)
+    activate PR
+    deactivate PR
+    deactivate PC
+
+    alt payment not COMPLETED
+        PC --> BC : PaymentDeclinedException
+        BC --> PD : PaymentDeclinedException
+        PD --> U : show error on form
+        note right of PD : seat stays held,\nuser can retry
+    else payment COMPLETED
+        PC -> RR : findById(reservationId)
+        activate RR
+        RR --> PC : reservation
+        deactivate RR
+        PC -> R : confirm(now)
+        activate R
+        note right of R : PENDING_PAYMENT -> CONFIRMED
+        deactivate R
+        PC -> RR : update(reservation)
+        activate RR
+        deactivate RR
+        PC --> BC : payment
+        BC -> RR : findById(reservationId)
+        activate RR
+        RR --> BC : reservation (CONFIRMED)
+        deactivate RR
+        BC --> PD : reservation (CONFIRMED)
+        PD -> PD : dispose()
+    end
+    deactivate PC
+    deactivate BC
+    PD -> PD : setWorking(false)
+end
+deactivate PD
+
+@enduml
