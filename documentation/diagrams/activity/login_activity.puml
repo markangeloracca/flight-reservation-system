@@ -1,0 +1,38 @@
+
+  @startuml
+  title Activity Diagram 1 - Login Process
+  skinparam shadowing false
+  start
+  :Show the sign-in screen;
+  if (Returning user or new customer?) then (new customer)
+    :Fill in profile, username, password and confirmation;
+    if (Fields valid and username/email available?) then (no)
+      :Show the error next to the field at fault;
+      stop
+    else (yes)
+    endif
+    :Create the Customer profile and User account in one transaction;
+  else (returning user)
+    :Enter username and password (or use a demo account);
+    :Submit credentials;
+    if (Username or password blank?) then (yes)
+      :Show "Enter your username and password";
+      stop
+    else (no)
+    endif
+    :Look up stored credentials by username;
+    if (Credentials valid? (unknown username still checked against a dummy hash)) then (no)
+      :Show "Invalid username or password" and clear the password field;
+      stop
+    else (yes)
+    endif
+  endif
+  :Wipe the password buffer and start the session;
+  :Build the workspace from the role's permissions;
+  :Show "Signed in as ...";
+  if (Customer with an unseen promotion this month?) then (yes)
+    :Show the monthly promotion once and mark it seen;
+  else (no)
+  endif
+  stop
+  @enduml

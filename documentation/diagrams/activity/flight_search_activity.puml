@@ -1,0 +1,31 @@
+@startuml
+
+title Activity Diagram 2 - Browsing for and Selecting a Flight
+start
+:Open "Find a flight";
+:Load airports, airlines and this month's promotion;
+if (Promotion with a discount this month?) then (yes)
+  :Show promotion banner (discount applied at checkout);
+else (no)
+endif
+:Search with no filters (list every bookable flight);
+repeat
+  :Build search criteria (filters + departing after now + bookable only);
+  :Query flights with seats left per cabin and "From" price;
+  if (Any flights found?) then (yes)
+    :Show results (times, duration, seats left, "From" price);
+  else (no)
+    :Show empty state "No flights match";
+  endif
+  :Customer scans the results;
+repeat while (Change a filter? (waits 200 ms for more changes)) is (yes) not (no)
+:Select seats on a flight;
+if (Flight has any seat left?) then (no)
+  :Warn "This flight is full. Please choose another flight.";
+  stop
+else (yes)
+endif
+:Open the booking dialog for the chosen flight;
+:Load the seat map (aircraft layout + occupied seats);
+stop
+@enduml

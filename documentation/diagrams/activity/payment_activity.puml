@@ -1,0 +1,49 @@
+
+@startuml
+title Activity Diagram 4 - Making a Payment
+skinparam shadowing false
+start
+:Show amount due, booking code and seat-hold time;
+repeat
+  :Choose credit or debit card and enter name, number, expiry and CVV;
+  if (Pay or cancel?) then (cancel)
+    :Return "not paid" to the caller;
+    stop
+  else (pay)
+  endif
+  if (Card details valid? (Luhn, expiry not past, CVV 3-4 digits)) then (no)
+    :Show the error next to the field at fault;
+  else (yes)
+  endif
+repeat while (Card details invalid?) is (yes) not (no)
+:Disable the form and show "Processing...";
+if (User may access this reservation and it is still PENDING_PAYMENT?) then (no)
+  :Show "This reservation is not awaiting payment";
+  stop
+else (yes)
+endif
+:Amount due = fare total - amount already paid;
+if (Amount due > 0?) then (no)
+  :Confirm the reservation directly;
+  stop
+else (yes)
+endif
+:Record payment INITIATED (brand and last 4 digits only);
+:Ask gateway to authorize the amount;
+if (Authorized?) then (no)
+  :Mark payment DECLINED with the reason;
+  :Save the attempt in payment history;
+  :Show "Payment declined: reason" (the seat stays held, user may retry);
+  stop
+else (yes)
+endif
+:Mark payment AUTHORIZED and store the reference;
+:Ask gateway to capture;
+:Mark payment COMPLETED, save it and notify open pages (PAYMENTS);
+partition "One transaction" {
+  :Move the reservation to CONFIRMED;
+}
+:Notify open pages (RESERVATIONS);
+:Close the dialog and show the booking confirmation;
+stop
+  @enduml

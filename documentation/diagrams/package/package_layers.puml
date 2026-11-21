@@ -1,0 +1,22 @@
+@startuml
+
+title G.1 Layer Overview
+
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+component "**app**  «composition root»\nFlightReservationApp builds every\nobject and injects dependencies" as APP #F5F5F5
+component "**Presentation layer**\nui.shell · ui.booking · ui.customer · ui.agent\nui.admin · ui.components · ui.theme\n«boundary» classes" as PRES #EEF4FF
+component "**Business logic layer**\ncontrol · control.confirmation\ndomain.model · domain.policy · domain.repository\ndomain.gateway · domain.security · domain.exception\n«control» and «entity» classes, interfaces" as BIZ #F0FAF3
+component "**Data layer**\ndata.db · data.sqlite · data.migration\ndata.gateway · data.file\nSQLite, simulated payment gateway, file export" as DATA #FFF7E6
+database "SQLite file\nfrs.db" as DB
+
+PRES --> BIZ : calls controllers,\nreads entities
+PRES --> APP : gets controllers\nfrom AppContext
+DATA ..> BIZ : implements repository\nand gateway interfaces
+DATA --> DB
+APP --> BIZ : wires
+APP --> DATA : wires
+
+@enduml

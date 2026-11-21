@@ -1,0 +1,21 @@
+@startuml
+title State Diagram 3 - Reservation Object
+
+hide empty description
+skinparam linetype ortho
+skinparam nodesep 100
+skinparam ranksep 100
+
+[*] --> PendingPayment : hold(...)\n[flight bookable]
+
+PendingPayment --> Confirmed : confirm(now)\n[payment completed]
+PendingPayment -right-> Cancelled : cancel(now)\nor [after 15 min]
+
+Confirmed : modify(newFlight, newSeat, newFare, now)\n[not departed, same route,\nnew flight bookable]
+Confirmed -right-> Cancelled : cancel(now)\n[not departed]
+Confirmed --> Completed : [when flight has departed]
+
+Cancelled --> [*]
+Completed --> [*]
+
+@enduml

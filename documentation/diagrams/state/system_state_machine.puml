@@ -1,0 +1,33 @@
+@startuml
+title State Diagram 1 - Overall System
+
+skinparam linetype ortho
+skinparam nodesep 90
+skinparam ranksep 110
+
+[*] --> Starting : user opens app
+Starting : entry/open database
+Starting : entry/show splash
+Starting -right-> Error : database\ncannot be opened
+Error --> [*]
+Starting --> SignedOut : database ready
+
+SignedOut --> SignedOut : login failed\n/ show error
+SignedOut --> CustomerWorkspace : customer logs in\nor registers
+SignedOut --> AgentWorkspace : agent logs in
+SignedOut --> AdminWorkspace : admin logs in
+CustomerWorkspace : entry/show promotion\nif unseen this month
+
+CustomerWorkspace -up-> SignedOut : logout
+AgentWorkspace -up-> SignedOut : logout
+AdminWorkspace -up-> SignedOut : logout
+
+CustomerWorkspace --> ShuttingDown : window closed
+AgentWorkspace --> ShuttingDown : window closed
+AdminWorkspace --> ShuttingDown : window closed
+SignedOut -right-> ShuttingDown : window closed
+ShuttingDown : do/save database
+ShuttingDown : exit/release lock
+ShuttingDown --> [*]
+
+@enduml

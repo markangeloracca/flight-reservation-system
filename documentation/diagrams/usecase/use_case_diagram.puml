@@ -1,0 +1,121 @@
+@startuml use_case_diagram
+' System use-case diagram (deliverable 7.1 B). Rendered to use_case_diagram.svg.
+' Layout is tuned for Graphviz: declaration order, [norank] and the hidden links steer
+' the placement, so re-render and check after any edit.
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype polyline
+skinparam nodesep 25
+skinparam ranksep 70
+skinparam actorStyle stickman
+skinparam usecase {
+  BackgroundColor #F4F8FF
+  BorderColor #375A7F
+}
+
+actor "//User//" as U
+actor Customer as C
+actor "Flight Agent" as FA
+actor "System Administrator" as AD
+actor "Payment Gateway\n<<simulated>>" as PG
+C -[hidden]> FA
+
+rectangle "Flight Reservation System" {
+    usecase "UC-01\nLog in" as UC01
+    usecase "UC-02\nLog out" as UC02
+    usecase "UC-20\nReceive monthly\npromotion" as UC20
+    usecase "UC-03\nRegister as\na customer" as UC03
+    usecase "UC-13\nEdit own profile" as UC13
+    usecase "UC-14\nManage customer\nprofiles" as UC14
+    usecase "UC-04\nSearch for flights" as UC04
+    usecase "UC-05\nView flight details\nand seat availability" as UC05
+    usecase "UC-06\nBook a flight" as UC06
+    usecase "UC-07\nMake a payment" as UC07
+    usecase "UC-11\nGenerate booking\nconfirmation" as UC11
+    usecase "UC-09\nModify a\nreservation" as UC09
+    usecase "UC-08\nCancel a\nreservation" as UC08
+    usecase "UC-10\nView reservations\nand booking history" as UC10
+    usecase "UC-12\nView payment\nhistory" as UC12
+    usecase "UC-15\nView flight\nschedules" as UC15
+    usecase "UC-16\nManage flights" as UC16
+    usecase "UC-17\nRemove outdated\nflights" as UC17
+    usecase "UC-18\nManage routes" as UC18
+    usecase "UC-19\nManage aircraft" as UC19
+}
+
+' User (abstract): every role logs in and out
+U <|- C
+U <|- FA
+U <|- AD
+U -- UC01
+U -- UC02
+
+C -- UC03
+C -- UC13
+C -- UC20
+C -- UC04
+C -- UC05
+C -- UC06
+C -- UC09
+C -- UC08
+C -- UC10
+C -- UC11
+C -- UC12
+
+FA -- UC14
+FA -- UC04
+FA -- UC05
+FA -- UC06
+FA -- UC09
+FA -- UC08
+FA -- UC10
+FA -- UC11
+FA -- UC12
+FA -- UC15
+
+' System Administrator is drawn on the right
+UC15 --- AD
+UC16 --- AD
+UC17 --- AD
+UC18 --- AD
+UC19 --- AD
+
+UC06 .[norank].> UC05 : <<include>>
+UC06 ..> UC07 : <<include>>
+UC09 .[norank].> UC05 : <<include>>
+
+UC07 .[norank].> UC09 : <<extend>>\n[fare increases]
+UC11 .[norank].> UC06 : <<extend>>\n[after payment]
+UC01 <.. UC20 : <<extend>>\n[first login\nthis month]
+
+' secondary actor: SimulatedPaymentGateway behind the PaymentGateway interface
+UC07 --- PG
+
+' layout only: keeps flight administration in the second column
+UC15 -[hidden]- UC16
+UC15 -[hidden]- UC17
+UC15 -[hidden]- UC18
+UC15 -[hidden]- UC19
+
+legend right
+  <b>DESIGN NOTES</b>
+
+  <b>Customer profiles</b>
+  - UC-03 creates a Login Account and a Customer Profile.
+  - Profiles an agent creates in UC-14 are walk-in: no Login Account.
+  - Customers view and edit only their own profile (UC-13).
+
+  <b>Payments (simulated, requirement 3.5)</b>
+  - No real payment processing; every charge and refund is recorded.
+  - UC-08 and UC-09 refund automatically when money is owed back.
+
+  <b>Flights</b>
+  - UC-16 cancelling a flight cancels and refunds every reservation on it.
+  - UC-16 deletes only flights with no booking history.
+
+  <b>Monthly promotion</b>
+  - Randomly selected when the application is first opened in a month,
+    and shown to each customer once that month.
+endlegend
+@enduml

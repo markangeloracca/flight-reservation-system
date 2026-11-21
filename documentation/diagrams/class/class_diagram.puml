@@ -1,0 +1,724 @@
+@startuml
+title Flight Reservation System - Class Diagram
+
+left to right direction
+scale max 4000*4000
+' norank: arrow that does not push classes right. scale: PNG under 4096 px.
+' Control -> entity dependencies are shown by the operation signatures.
+
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam nodesep 25
+skinparam ranksep 70
+hide circle
+skinparam class {
+  BackgroundColor<<boundary>> #E9F7EF
+  BackgroundColor<<control>> #FFF4DC
+  BackgroundColor<<entity>> #EAF4FF
+  BackgroundColor<<enumeration>> #EAF4FF
+  BackgroundColor<<interface>> #F2F2F2
+}
+
+' Every class traces to a scenario or a use case (UC-xx).
+
+' ==========================================
+' CLASSES BY FEATURE
+' ==========================================
+
+package "Account & Login" {
+
+  class LoginView <<boundary>> {
+    - signIn(): void
+  }
+
+  class Banner <<boundary>> {
+    + show(tone: Tone, text: String): void
+  }
+
+  class ProfilePage <<boundary>> {
+    - save(): void
+  }
+
+  class CustomersPage <<boundary>> {
+    - newCustomer(): void
+    - editCustomer(c: Customer): void
+  }
+
+  class RegisterDialog <<boundary>> {
+    {static} ~ show(owner, ctx): void
+    - submit(): void
+  }
+
+  class MainFrame <<boundary>> {
+    - onUserChanged(user: User): void
+    - maybeShowPromotion(): void
+  }
+
+  class PageFactory <<boundary>> {
+    {static} + pagesFor(user: User, ctx: AppContext): List<Page>
+  }
+
+  class AuthController <<control>> {
+    {static} + MIN_PASSWORD_LENGTH: int = 8 {readOnly}
+    + login(username: String, password: char[]): User
+    + logout(): void
+    + registerCustomer(profile: Customer, username: String, password: char[], confirmPassword: char[]): User
+    {static} ~ validatePassword(password: char[], confirm: char[]): void
+  }
+
+  class PasswordHasher <<control>> {
+    + verify(password: char[], stored: String): boolean
+    + hash(password: char[]): String
+    {static} + wipe(buffer: char[]): void
+  }
+
+  class Session <<control>> {
+    - user: User
+    + currentUser(): Optional<User>
+    + require(permission: Permission): User
+    ~ signIn(user: User): void
+    ~ signOut(): void
+    + addPropertyChangeListener(l): void
+  }
+
+  class CustomerController <<control>> {
+    + search(text: String): List<Customer>
+    + myProfile(): Customer
+    + create(customer: Customer): Customer
+    + update(customer: Customer): Customer
+    + payments(customerId: long): List<Payment>
+    + reservations(customerId: long): List<Reservation>
+    + get(customerId: long): Customer
+    - ensureEmailFree(email: String, selfId: Long): void
+  }
+
+  abstract class User <<entity>> {
+    - id: long
+    - username: String
+    - fullName: String
+    - email: String
+    {abstract} + role(): Role
+    + can(permission: Permission): boolean
+  }
+
+  class CustomerUser <<entity>> {
+    - customerId: long
+    + role(): Role
+  }
+
+  class FlightAgent <<entity>> {
+    + role(): Role
+  }
+
+  class SystemAdministrator <<entity>> {
+    + role(): Role
+  }
+
+  enum Role <<enumeration>> {
+    CUSTOMER
+    AGENT
+    ADMIN
+    - permissions: Set<Permission>
+  }
+
+  enum Permission <<enumeration>> {
+    SEARCH_FLIGHTS
+    BOOK_FLIGHTS
+    ...
+  }
+
+  class Customer <<entity>> {
+    - id: Long
+    - firstName: String
+    - lastName: String
+    - email: String
+    - phone: String
+    - dateOfBirth: LocalDate
+    - address: String
+    - createdAt: LocalDateTime
+    + fullName(): String
+  }
+
+  interface UserRepository <<interface>> {
+    + findCredentials(username: String): Optional<StoredCredentials>
+    + usernameExists(username: String): boolean
+    + create(username: String, passwordHash: String, role: Role, fullName: String, email: String, customerId: Long): long
+    + updateProfile(userId: long, fullName: String, email: String): void
+  }
+
+  interface CustomerRepository <<interface>> {
+    + findById(id: long): Optional<Customer>
+    + findByEmail(email: String): Optional<Customer>
+    + search(text: String): List<Customer>
+    + save(customer: Customer): Customer
+  }
+
+}
+
+package "Flights & Search" {
+
+  class FlightSearchPage <<boundary>> {
+    # reload(): void
+    - book(a: FlightAvailability): void
+  }
+
+  class SchedulePage <<boundary>> {
+    # reload(): void
+  }
+
+  class FlightsPage <<boundary>> {
+    - cancelFlight(a: FlightAvailability): void
+    - delete(a: FlightAvailability): void
+    - removeOutdated(): void
+  }
+
+  class RoutesPage <<boundary>> {
+    - delete(r: Route): void
+  }
+
+  class AircraftPage <<boundary>> {
+    - delete(a: Aircraft): void
+  }
+
+  class FlightSearchController <<control>> {
+    + airports(): List<Airport>
+    + airlines(): List<Airline>
+    + search(origin, destination, dateFrom, dateTo, airline): List<FlightAvailability>
+    + seatMap(flightId: long): SeatMap
+    + flight(flightId: long): Flight
+    + schedule(from: LocalDate, to: LocalDate): List<FlightAvailability>
+  }
+
+  class FlightManagementController <<control>> {
+    + save(flight: Flight): Flight
+    + cancelFlight(flightId: long): int
+    + deleteFlight(flightId: long): void
+    + removeOutdatedFlights(): int
+    + flights(from: LocalDate, to: LocalDate): List<FlightAvailability>
+    {static} ~ checkSeatsFit(target: Aircraft, booked: List<Reservation>): void
+  }
+
+  class RouteAndAircraftController <<control>> {
+    + saveRoute(route: Route): Route
+    + deleteRoute(routeId: long): void
+    + saveAircraft(a: Aircraft): Aircraft
+    + deleteAircraft(aircraftId: long): void
+    + routes(): List<Route>
+    + aircraft(): List<Aircraft>
+  }
+
+  class Flight <<entity>> {
+    - id: Long
+    - flightNumber: String
+    - departureTime: LocalDateTime
+    - arrivalTime: LocalDateTime
+    - baseFare: Money
+    + isBookable(now: LocalDateTime): boolean
+    + fareFor(seatClass: SeatClass): Money
+    + hasDeparted(now: LocalDateTime): boolean
+  }
+
+  class Route <<entity>> {
+    - id: Long
+    - distanceKm: int
+  }
+
+  class Airport <<entity>> {
+    - code: String
+    - name: String
+    - city: String
+    - country: String
+  }
+
+  class Airline <<entity>> {
+    - code: String
+    - name: String
+  }
+
+  class Aircraft <<entity>> {
+    - id: Long
+    - registration: String
+    - model: String
+    - businessRows: int
+    - economyRows: int
+    - seatsPerRow: int
+    + allSeats(): List<Seat>
+    + requireSeat(code: String): Seat
+    + capacity(seatClass: SeatClass): int
+  }
+
+  class Seat <<entity>> {
+    - row: int
+    - letter: char
+    + code(): String
+  }
+
+  enum SeatClass <<enumeration>> {
+    ECONOMY
+    BUSINESS
+    - fareMultiplier: BigDecimal
+  }
+
+  class SeatMap <<entity>> {
+    - occupiedSeatCodes: Set<String>
+    + isAvailable(seat: Seat): boolean
+    + availableCount(seatClass: SeatClass): long
+  }
+
+  class FlightAvailability <<entity>> {
+    - economyAvailable: int
+    - businessAvailable: int
+    + lowestFare(): Money
+    + available(seatClass: SeatClass): int
+    + totalAvailable(): int
+  }
+
+  class FlightSearchCriteria <<entity>> {
+    - originCode: String
+    - destinationCode: String
+    - dateFrom: LocalDate
+    - dateTo: LocalDate
+    - airlineCode: String
+    - departingAfter: LocalDateTime
+    - bookableOnly: boolean
+    {static} + builder(): FlightSearchCriteria.Builder
+  }
+
+  interface FlightRepository <<interface>> {
+    + findById(id: long): Optional<Flight>
+    + search(criteria: FlightSearchCriteria): List<FlightAvailability>
+    + schedule(from: LocalDateTime, to: LocalDateTime): List<FlightAvailability>
+    + occupiedSeats(flightId: long): Set<String>
+    + save(flight: Flight): Flight
+    + delete(id: long): void
+    + hasReservations(flightId: long): boolean
+    + flightNumberTaken(flightNumber: String, departure: LocalDateTime, excludingId: Long): boolean
+    + deleteDepartedWithoutReservations(cutoff: LocalDateTime): int
+  }
+
+  interface ReferenceDataRepository <<interface>> {
+    + findAllAirports(): List<Airport>
+    + findAllAirlines(): List<Airline>
+  }
+
+  enum FlightStatus <<enumeration>> {
+    SCHEDULED
+    DELAYED
+    CANCELLED
+  }
+
+}
+
+package "Booking" {
+
+  class BookingDialog <<boundary>> {
+    {static} + open(owner, ctx, flight: Flight): void
+    - loadSeatMap(): void
+    - onSeatChanged(seat: Seat): void
+    - holdAndPay(): void
+    + dispose(): void
+  }
+
+  class SeatMapPanel <<boundary>> {
+    + setSeatMap(map: SeatMap, currentSeatCode: String): void
+    + selectedSeat(): Seat
+  }
+
+  class FareBreakdown <<boundary>> {
+    + show(q: FareQuote): void
+  }
+
+  class ConfirmationDialog <<boundary>> {
+    {static} + open(owner, ctx, reservationId: long, justBooked: boolean): void
+    - save(): void
+  }
+
+  class MyTripsPage <<boundary>> {
+    # reload(): void
+  }
+
+  class ReservationsPage <<boundary>> {
+    # reload(): void
+  }
+
+  class ModifyReservationDialog <<boundary>> {
+    {static} + open(owner, ctx, r: Reservation): void
+    - apply(): void
+  }
+
+  class PromotionDialog <<boundary>> {
+    {static} ~ show(owner, promotion: Promotion, month): void
+  }
+
+  class BookingController <<control>> {
+    {static} + HOLD_EXPIRY: Duration = 15 min {readOnly}
+    + quote(flight: Flight, seatClass: SeatClass): FareQuote
+    + holdSeat(customerId: long, flightId: long, seatCode: String): Reservation
+    + pay(reservationId: long, card: CardDetails): Reservation
+    + releaseHold(reservationId: long): void
+    + confirmation(reservationId: long): BookingConfirmation
+    + exportConfirmation(reservationId: long, target, renderer): void
+    + quoteCancellation(reservationId: long): CancellationQuote
+    + cancel(reservationId: long): CancellationQuote
+    + quoteModification(reservationId: long, newFlightId: long, newSeatCode: String): ModificationQuote
+    + modify(reservationId: long, newFlightId: long, newSeatCode: String, card: CardDetails): Reservation
+    + myReservations(): List<Reservation>
+    + search(text: String, status: ReservationStatus): List<Reservation>
+    + runHousekeeping(): HousekeepingResult
+  }
+
+  class FareCalculator <<control>> {
+    - taxPercent: int
+    + quote(flight: Flight, seatClass: SeatClass, policy: DiscountPolicy): FareQuote
+  }
+
+  interface DiscountPolicy <<interface>> {
+    {static} + NONE: DiscountPolicy {readOnly}
+    + discountFor(fare: Money): Money
+    + label(): String
+  }
+
+  class PromotionController <<control>> {
+    + currentPromotion(): Optional<Promotion>
+    + currentDiscountPolicy(): DiscountPolicy
+    + unseenPromotionForCurrentCustomer(): Optional<Promotion>
+    + markSeenByCurrentCustomer(): void
+  }
+
+  class ConfirmationCodeGenerator <<control>> {
+    + next(): String
+  }
+
+  class AccessGuard <<control>> {
+    ~ requireCustomerAccess(customerId: long): User
+    ~ requireReservationAccess(r: Reservation): User
+  }
+
+  class EventBus <<control>> {
+    + publish(topic: Topic): void
+    + subscribe(topic: Topic, l): void
+  }
+
+  class Promotion <<entity>> {
+    - id: Long
+    - title: String
+    - description: String
+    - discountPercent: int
+    - active: boolean
+  }
+
+  class FareQuote <<entity>> {
+    - seatClass: SeatClass
+    - fare: Money
+    - discount: Money
+    - tax: Money
+    - total: Money
+    - promotionTitle: String
+  }
+
+  class Reservation <<entity>> {
+    - id: Long
+    - confirmationCode: String
+    - bookedByUserId: Long
+    - createdAt: LocalDateTime
+    - updatedAt: LocalDateTime
+    {static} + hold(code, customer, flight, seat, fare, now, bookedBy): Reservation
+    + confirm(now: LocalDateTime): void
+    + cancel(now: LocalDateTime): void
+    ~ transitionTo(next: ReservationState): void
+    + complete(now: LocalDateTime): void
+    + modify(newFlight: Flight, newSeat: Seat, newFare: FareQuote, now: LocalDateTime): void
+    + holdsSeat(): boolean
+    + isOwnedBy(customerId: long): boolean
+    + status(): ReservationStatus
+  }
+
+  interface ReservationState <<interface>> {
+    + status(): ReservationStatus
+    + holdsSeat(): boolean
+    + confirm(r: Reservation): void
+    + cancel(r: Reservation): void
+    + checkModifiable(r: Reservation): void
+    + complete(r: Reservation): void
+  }
+
+  class PendingPaymentState <<entity>> {
+    {static} ~ INSTANCE: PendingPaymentState {readOnly}
+    + status(): ReservationStatus
+    + holdsSeat(): boolean
+    + confirm(r: Reservation): void
+    + cancel(r: Reservation): void
+    + checkModifiable(r: Reservation): void
+  }
+
+  class ConfirmedState <<entity>> {
+    {static} ~ INSTANCE: ConfirmedState {readOnly}
+    + status(): ReservationStatus
+    + holdsSeat(): boolean
+    + cancel(r: Reservation): void
+    + checkModifiable(r: Reservation): void
+    + complete(r: Reservation): void
+  }
+
+  class CancelledState <<entity>> {
+    {static} ~ INSTANCE: CancelledState {readOnly}
+    + status(): ReservationStatus
+  }
+
+  class BookingConfirmation <<entity>> {
+    - amountPaid: Money
+    - generatedAt: LocalDateTime
+  }
+
+  interface ReservationRepository <<interface>> {
+    + insert(r: Reservation): Reservation
+    + update(r: Reservation): void
+    + findById(id: long): Optional<Reservation>
+    + findByCustomer(customerId: long): List<Reservation>
+    + search(text: String, status: ReservationStatus): List<Reservation>
+    + findActiveByFlight(flightId: long): List<Reservation>
+    + findActiveByAircraft(aircraftId: long): List<Reservation>
+    + findPendingCreatedBefore(cutoff: LocalDateTime): List<Reservation>
+    + findConfirmedDepartedBefore(now: LocalDateTime): List<Reservation>
+  }
+
+  class CompletedState <<entity>> {
+    {static} ~ INSTANCE: CompletedState {readOnly}
+    + status(): ReservationStatus
+  }
+
+  enum ReservationStatus <<enumeration>> {
+    PENDING_PAYMENT
+    CONFIRMED
+    CANCELLED
+    COMPLETED
+    + state(): ReservationState
+  }
+
+}
+
+package "Payment" {
+
+  class PaymentDialog<T> <<boundary>> {
+    {static} + show(owner, title, summary, amount, cardholder, submitter): Optional<T>
+    - submit(): void
+    - setWorking(working: boolean): void
+    + dispose(): void
+  }
+
+  class PaymentController <<control>> {
+    + payReservation(reservationId: long, card: CardDetails): Payment
+    ~ charge(reservationId: long, card: CardDetails, amount: Money): Payment
+    + amountPaid(reservationId: long): Money
+    + paymentsFor(reservationId: long): List<Payment>
+    ~ refund(reservationId: long, amount: Money): Payment
+  }
+
+  class Payment <<entity>> {
+    - id: Long
+    - amount: Money
+    - cardBrand: String
+    - cardLast4: String
+    - transactionRef: String
+    - cardholderName: String
+    - failureReason: String
+    - createdAt: LocalDateTime
+    {static} + initiate(reservationId, type, amount, card, now): Payment
+    + authorize(ref: String): void
+    + complete(): void
+    + decline(reason: String): void
+    {static} + initiateRefund(originalCharge: Payment, amount: Money, now: LocalDateTime): Payment
+    + markRefunded(): void
+    + netEffect(): Money
+  }
+
+  class CardDetails <<entity>> {
+    - cardholderName: String
+    - number: String
+    - expiry: YearMonth
+    - cvv: String
+    + brand(): String
+    {static} + luhnValid(digits: String): boolean
+  }
+
+  enum PaymentMethodType <<enumeration>> {
+    CREDIT_CARD
+    DEBIT_CARD
+  }
+
+  interface PaymentRepository <<interface>> {
+    + insert(p: Payment): Payment
+    + update(p: Payment): void
+    + findByReservation(reservationId: long): List<Payment>
+    + findByCustomer(customerId: long): List<Payment>
+  }
+
+  interface PaymentGateway <<interface>> {
+    + authorize(card: CardDetails, amount: Money): GatewayResult
+    + capture(authorizationRef: String, amount: Money): GatewayResult
+    + refund(originalRef: String, amount: Money): GatewayResult
+  }
+
+  enum PaymentStatus <<enumeration>> {
+    INITIATED
+    AUTHORIZED
+    DECLINED
+    COMPLETED
+    REFUNDED
+    + next(): Set<PaymentStatus>
+    + canMoveTo(target: PaymentStatus): boolean
+  }
+
+  enum PaymentType <<enumeration>> {
+    CHARGE
+    REFUND
+  }
+
+}
+
+LoginView ..> AuthController : login
+LoginView *-- Banner
+LoginView ..> RegisterDialog : create account
+MainFrame ..> AuthController : logout
+RegisterDialog ..> AuthController : registerCustomer
+MainFrame ..> Session : observes
+MainFrame ..> PageFactory : builds pages
+MainFrame ..> PromotionDialog
+PromotionDialog ..> PromotionController
+
+' ==========================================
+' BOUNDARY TO CONTROL (Scenarios 1-3)
+' ==========================================
+
+FlightSearchPage ..> FlightSearchController : search
+FlightSearchPage ..> PromotionController
+FlightSearchPage ..> BookingDialog : select seats
+BookingDialog *-- SeatMapPanel
+BookingDialog *-- FareBreakdown
+BookingDialog ..> BookingController : quote, hold
+BookingDialog ..> PaymentDialog
+BookingDialog ..> ConfirmationDialog
+PaymentDialog ..> BookingController : pay
+ConfirmationDialog ..> BookingController
+
+' Boundary to control for use cases without a scenario
+MyTripsPage ..> BookingController : UC-08, 10
+MyTripsPage ..> CustomerController : UC-12
+MyTripsPage ..> ModifyReservationDialog
+ReservationsPage ..> BookingController : UC-08, 10
+ReservationsPage ..> ModifyReservationDialog
+ModifyReservationDialog ..> BookingController : UC-09
+ProfilePage ..> CustomerController : UC-13
+CustomersPage ..> CustomerController : UC-14
+SchedulePage ..> FlightSearchController : UC-15
+FlightsPage ..> FlightManagementController : UC-16, 17
+RoutesPage ..> RouteAndAircraftController : UC-18
+AircraftPage ..> RouteAndAircraftController : UC-19
+
+' ==========================================
+' CONTROL COLLABORATION
+' ==========================================
+
+AuthController --> Session
+AuthController --> PasswordHasher
+AuthController --> UserRepository
+FlightSearchController --> Session
+FlightSearchController --> FlightRepository
+FlightSearchController --> ReferenceDataRepository
+BookingController --> PromotionController : discount policy
+BookingController --> FareCalculator
+BookingController --> ConfirmationCodeGenerator
+BookingController --> PaymentController : delegates payment
+BookingController *-- AccessGuard
+PaymentController *-- AccessGuard
+AccessGuard --> Session
+BookingController --> EventBus
+PaymentController --> EventBus
+BookingController --> CustomerRepository
+BookingController --> FlightRepository
+BookingController --> ReservationRepository
+PaymentController --> ReservationRepository
+PaymentController --> PaymentRepository
+PaymentController --> PaymentGateway
+AuthController --> CustomerRepository
+CustomerController --> UserRepository
+CustomerController --> ReservationRepository
+CustomerController --> PaymentRepository
+FlightManagementController --> ReservationRepository
+BookingController --> PaymentRepository
+FareCalculator ..> DiscountPolicy
+
+' Administration use cases (UC-13, UC-14, UC-16 to UC-19)
+CustomerController *-- AccessGuard
+CustomerController --> CustomerRepository
+FlightManagementController --> PaymentController : refunds
+FlightManagementController --> FlightRepository
+RouteAndAircraftController ..> FlightManagementController : checkSeatsFit
+
+' Repository -> entity: the entity each repository stores (norank keeps the layout)
+UserRepository .[norank].> User
+CustomerRepository .[norank].> Customer
+FlightRepository .[norank].> Flight
+ReferenceDataRepository .[norank].> Airport
+ReferenceDataRepository .[norank].> Airline
+ReservationRepository .[norank].> Reservation
+PaymentRepository .[norank].> Payment
+
+' ==========================================
+' ENTITY ASSOCIATIONS
+' ==========================================
+
+CustomerUser --|> User
+FlightAgent --|> User
+SystemAdministrator --|> User
+User ..> Role
+Role "1..*" o-- "1..*" Permission : grants
+CustomerUser "0..1" --> "1" Customer : profile
+
+Route "0..*" -[norank]-> "1\n+origin" Airport
+Route "0..*" -[norank]-> "1\n+destination" Airport
+Flight "0..*" --> "1" Route : flies
+Flight "0..*" --> "1" Airline : operated by
+Flight "0..*" --> "1" Aircraft : uses
+Flight "0..*" --> "1\n+status" FlightStatus
+Seat "1..*" --* "1" Aircraft : layout
+Seat "0..*" -[norank]-> "1" SeatClass
+FlightAvailability "0..*" -[norank]-> "1" Flight
+SeatMap "0..1" -[norank]-> "1" Flight
+
+Reservation "0..*" --> "1" Customer : for
+Reservation "0..*" --> "1" Flight : on
+Reservation "0..1" --> "1" Seat : holds
+Reservation "1" *-- "1" FareQuote : priced by
+Reservation "0..*" --> "1\n+currentState" ReservationState
+PendingPaymentState ..|> ReservationState
+ConfirmedState ..|> ReservationState
+CancelledState ..|> ReservationState
+CompletedState ..|> ReservationState
+ReservationState ..> ReservationStatus
+ReservationStatus .[norank].> ReservationState
+FareQuote .[norank].> Promotion : discount from
+
+Payment "0..*" -[norank]-> "1" Reservation : settles
+Payment "0..*" --> "1" PaymentMethodType
+Payment "0..*" --> "1\n+status" PaymentStatus
+Payment "0..*" --> "1\n+type" PaymentType
+CardDetails "0..*" --> "1" PaymentMethodType
+Payment ..> CardDetails : initiated from
+BookingConfirmation "1" -[norank]-> "1" Reservation
+BookingConfirmation "1" o-[norank]- "0..*" Payment : history
+
+' ==========================================
+' DESIGN NOTES
+' ==========================================
+
+legend right
+  <b>DESIGN NOTES</b>
+  - <b>State:</b> Reservation never changes status directly; its
+    current ReservationState allows or refuses each move.
+  - An unpaid hold expires after HOLD_EXPIRY.
+  - <b>Payment</b> is simulated (SimulatedPaymentGateway); no real gateway.
+endlegend
+@enduml

@@ -1,0 +1,81 @@
+@startuml
+title Sequence Diagram 1 - Log In (UC-01)
+
+hide footbox
+skinparam sequenceParticipant underline
+autonumber
+
+actor "User" as U
+participant ":LoginView" as LV
+participant ":Banner" as BN
+participant ":AuthController" as AC
+participant ":UserRepository" as UR
+participant ":PasswordHasher" as PH
+participant ":Session" as SS
+participant ":MainFrame" as MF
+participant ":PageFactory" as PF
+participant ":PromotionController" as PC
+participant ":PromotionDialog" as PD
+
+hnote over SS : Signed Out
+
+U -> LV : enter username and password, click Sign in
+activate LV
+LV -> AC : login(username, password)
+activate AC
+
+opt username and password not blank
+    AC -> UR : findCredentials(username)
+    activate UR
+    UR --> AC : credentials
+    deactivate UR
+
+    AC -> PH : verify(password, passwordHash)
+    activate PH
+    note right of PH : unknown username:\nverify against a dummy hash\n(same response time)
+    PH --> AC : matches
+    deactivate PH
+
+    opt password matches
+        AC -> SS : signIn(user)
+        activate SS
+        hnote over SS : Signed In
+        SS ->> MF : onUserChanged(user)
+        deactivate SS
+    end
+end
+
+AC -> PH : wipe(password)
+AC --> LV : user / AuthenticationException
+deactivate AC
+
+alt signed in
+    activate MF
+    MF -> PF : pagesFor(user, ctx)
+    activate PF
+    PF --> MF : pages allowed for role
+    deactivate PF
+    MF --> U : show role workspace
+
+    MF -> PC : unseenPromotionForCurrentCustomer()
+    activate PC
+    PC --> MF : promotion
+    deactivate PC
+
+    opt customer and promotion not seen this month
+        MF -> PD : show(owner, promotion, month)
+        activate PD
+        PD --> U : display monthly promotion
+        deactivate PD
+        MF -> PC : markSeenByCurrentCustomer()
+        activate PC
+        deactivate PC
+    end
+    deactivate MF
+else login failed
+    LV -> BN : show(DANGER, errorMessage)
+    LV --> U : clear password field
+end
+deactivate LV
+
+@enduml

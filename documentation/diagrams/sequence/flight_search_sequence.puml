@@ -1,0 +1,97 @@
+@startuml
+title Sequence Diagram 2 - Search for Flights (UC-04, UC-05)
+
+hide footbox
+skinparam sequenceParticipant underline
+autonumber
+
+actor "Customer / Agent" as U
+participant ":FlightSearchPage" as FSP
+participant ":Banner" as BN
+participant ":FlightSearchController" as FSC
+participant ":ReferenceDataRepository" as RDR
+participant ":PromotionController" as PC
+participant ":FlightSearchCriteria" as FCR
+participant ":FlightRepository" as FR
+participant ":BookingDialog" as BD
+participant ":SeatMap" as SM
+participant ":SeatMapPanel" as SMP
+
+U -> FSP : open "Find a flight"
+activate FSP
+
+FSP -> FSC : airports()
+activate FSC
+FSC -> RDR : findAllAirports()
+activate RDR
+RDR --> FSC : airports
+deactivate RDR
+FSC --> FSP : airports
+deactivate FSC
+
+FSP -> FSC : airlines()
+activate FSC
+FSC -> RDR : findAllAirlines()
+activate RDR
+RDR --> FSC : airlines
+deactivate RDR
+FSC --> FSP : airlines
+deactivate FSC
+
+FSP -> PC : currentPromotion()
+activate PC
+PC --> FSP : promotion
+deactivate PC
+
+opt promotion has a discount
+    FSP -> BN : show(SUCCESS, discountMessage)
+end
+
+loop initial load, then each filter change (200 ms debounce)
+    U -> FSP : choose origin, destination, date range, airline
+    FSP -> FSC : search(origin, destination, dateFrom, dateTo, airline)
+    activate FSC
+
+    create FCR
+    FSC -> FCR : builder() ... build()
+    note right of FCR : departingAfter(now)\nbookableOnly(true)
+    FCR --> FSC : criteria
+
+    FSC -> FR : search(criteria)
+    activate FR
+    FR --> FSC : flightAvailabilities
+    deactivate FR
+    FSC --> FSP : flightAvailabilities
+    deactivate FSC
+
+    FSP --> U : show matching flights
+    note right of FSP : empty list:\n"No flights found"
+end
+
+U -> FSP : select a flight
+alt totalAvailable() == 0
+    FSP --> U : warn "This flight is full"
+else seats available
+    create BD
+    FSP -> BD : open(flight)
+    activate BD
+    BD -> FSC : seatMap(flightId)
+    activate FSC
+    FSC -> FR : findById(flightId)
+    activate FR
+    FR --> FSC : flight
+    deactivate FR
+    FSC -> FR : occupiedSeats(flightId)
+    activate FR
+    FR --> FSC : occupiedSeatCodes
+    deactivate FR
+    create SM
+    FSC -> SM : new SeatMap(flight, occupiedSeatCodes)
+    FSC --> BD : seatMap
+    deactivate FSC
+    BD -> SMP : setSeatMap(seatMap, null)
+    deactivate BD
+end
+deactivate FSP
+
+@enduml
